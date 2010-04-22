@@ -11,20 +11,22 @@ import sys
 
 import autobuild_base
 import configfile
-	
+
+AutobuildError = common.AutobuildError
 
 class autobuild_tool(autobuild_base.autobuild_base):
     def get_details(self):
-        return dict(name='dump',
+        return dict(name=self.name_from_file(__file__),
             description="Output the contents of an autobuild configuration file in a human "
             "readable format.")
      
     def register(self, parser):
-        parser.add_argument('-v', '--version', action='version', version='dump tool 1.0')
+        parser.add_argument('-v', '--version', action='version', version='info tool 1.0')
         parser.add_argument('file', default=configfile.BUILD_CONFIG_FILE, nargs='?',
-            help='The configuration file to dump')
+            help='A configuration file to display')
         parser.add_argument('--format', default='all',
-            help='Comma separated list of package elements to dump')
+            help='Comma separated list of package elements to display')
+        parser.add_argument('-p','--package', action='append', help="A named package to display")
 
     def run(self, args):
         config = configfile.ConfigFile()
@@ -35,7 +37,11 @@ class autobuild_tool(autobuild_base.autobuild_base):
             self._reset_format_flags(True)
         else:
             self._set_format_flags(formatString)
-        self._pretty_print(config)
+        if args.package is not None and len(args.package) > 0:
+            packageNames = args.package
+        else:
+            packageNames = config.package_names
+        self._pretty_print(config, packageNames)
     
     def _reset_format_flags(self, state):
         for key in self._display_flags.keys():
@@ -49,11 +55,14 @@ class autobuild_tool(autobuild_base.autobuild_base):
             else:
                 print >> sys.stderr, "format: keyword '%s' not found" % format
         
-    def _pretty_print(self, config):
-        for name in config.package_names:
-            self._pretty_print_package(name, config.package(name))
-            print
-            print
+    def _pretty_print(self, config, packageNames):
+        for name in packageNames:
+            if config.package(name) is not None:
+                self._pretty_print_package(name, config.package(name))
+                print
+                print
+            else:
+                print >> sys.stderr, "package '%s' not found" % name
         
     def _pretty_print_package(self, name, info):
         print name,
@@ -69,7 +78,11 @@ class autobuild_tool(autobuild_base.autobuild_base):
             print
             print info.description
         if info.license is not None and self._display_flags['license']:
-            print "License:", info.license
+            print "License:", info.license,
+            if info.licensefile is not None and self._display_flags['licensefile']:
+                print "(" + info.licensefile +")"
+            else:
+                print
         if info.homepage is not None and self._display_flags['homepage']:
             print "homepage:", info.homepage
         if info.uploadtos3 is not None and self._display_flags['uploadtos3']:
@@ -163,6 +176,7 @@ class autobuild_tool(autobuild_base.autobuild_base):
         'summary' : True,
         'description': True,
         'license': True,
+        'licensefile': True,
         'homepage': True,
         'uploadtos3': True,
         'source': True,
@@ -183,7 +197,7 @@ class autobuild_tool(autobuild_base.autobuild_base):
     }
 
 
-class ConfigurationFileNotFoundError(Exception):
+class ConfigurationFileNotFoundError(AutobuildError):
     pass
 
 

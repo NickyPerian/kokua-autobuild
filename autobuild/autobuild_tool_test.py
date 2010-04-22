@@ -26,10 +26,11 @@ class run_test_option(argparse.Action):
 		optional_value = values[0]
 		pass
 		
-class autobuild_tool:
+class autobuild_tool(autobuild_base.autobuild_base):
 
 	def get_details(self):
-		return dict(name='test', description='Test Tool for Autobuild')
+		return dict(name=self.name_from_file(__file__),
+                    description='Test Tool for Autobuild')
 	
 	def register(self, parser):
 		print "Autobuild Test Tool Says Hi-De-Hi"
