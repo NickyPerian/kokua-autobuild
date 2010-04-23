@@ -2,96 +2,119 @@
 
 import sys
 import os
-import optparse
+import common
+import argparse
 
-class OptionParser(optparse.OptionParser):
+class run_help(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        parser.parent.search_for_and_import_tools(parser.parent.tools_list)
+        parser.parent.register_tools(parser.parent.tools_list)
+        print parser.format_help()
+        parser.exit(0)
+
+
+class Autobuild(object):
     def __init__(self):
-        default_platform = {
-            'linux2':'linux',
-            'win32':'windows',
-            'cygwin':'windows',
-        }.get(sys.platform, sys.platform)
+        self.parser = argparse.ArgumentParser(
+            description='Autobuild', prog='autobuild', add_help=False)
+        
+        self.parser.add_argument('-v', '--version', action='version', version='%(prog)s 1.0')
 
-        #package usage="\n    %prog -t expat GL\n    %prog -u ../tarfile_tmp/expat-1.2.5-darwin-20080810.tar.bz2\n    %prog -i ./tmp/zlib*.tar.bz2 ../glh_lin*.bz2", 
-        #package description="""Create tar archives from library files, and upload as appropriate.  Tarfiles will be formed from paths as specified in the manifest in autobuild.xml, or alternately 'configdir', if supplied as a command-line argument.""")
+        self.subparsers = self.parser.add_subparsers(title='Sub Commands',
+            description='Valid Sub Commands',
+            help='Sub Command help')
 
-        optparse.OptionParser.__init__(self, usage="\n\t%prog [options] command [commandopts]\n\twhere command is one of 'install' 'configure' 'build' 'package' or 'upload'")
-        self.add_option('--package-info', default='autobuild.xml',
-            help="file containing package info database (for now this is llsd+xml, but it will probably become sqlite)")
-        self.add_option('--verbose', '-v', action='store_true', default=False)
-        self.add_option('--install-dir', default='build-linux-i686-relwithdebinfo/packages',
-            help="directory to install packages into")
-        self.add_option('--platform', type='string', default=default_platform,
-            help="Specify platform to use: linux, darwin, or windows.  Left unspecified, the current platform will be used (formerly all three platforms were used).")
+    def listdir(self, dir):
+        files = os.listdir(dir)
+        if 'autobuild_tool_test.py' in files:
+            del files[files.index('autobuild_tool_test.py')]
+        return files
 
+    def register_tool(self, tool):
+        newtool = tool.autobuild_tool()
+        details = newtool.get_details()
+        self.new_tool_subparser = self.subparsers.add_parser(details['name'], help=details['description']);
+        newtool.register(self.new_tool_subparser)
+        return newtool
 
-        ##########
-        # BEGIN packaging options
-        ##########
-        self.add_option('--version', type='string', default="", dest='version',
-            help='Overrides the version number for the specified library(ies).  If unspecified, the version number in "versions.txt" (in configdir) will be used, if present.  Can be left blank.')
-        #self.add_option('-i', '--install', action='store_true', default=False, dest='install',
-        #    help='Update autobuild.xml with the data for the specified tarfile(s). List paths to tarfiles to update (supports glob expressions).  Use --s3 option if appropriate (read about --s3 option).')
-        group = optparse.OptionGroup(self, "S3 Uploading", "*NOTE*: S3 upload does not work on Windows, since command-line tool (s3curl.pl) is not supported there.  Either perform S3 uploads from a unix machine, or see wiki for uploading to S3 from Windows.")
+    def register_tools(self, tools_list):
+        for tool in tools_list:
+            self.register_tool(tool)
+    
+    def search_for_and_import_tools(self, tools_list):
+        autobuild_package_dir = os.path.dirname(__file__)
+        all_files=self.listdir(autobuild_package_dir)
+        for file_name in all_files:
+            if(file_name.endswith('.py') and
+                file_name != '__init__.py' and
+                file_name.startswith('autobuild_tool_')):
+                module_name=file_name[:-3]
+                possible_tool_module = __import__(module_name, globals(), locals(), []);
+                if(getattr(possible_tool_module, 'autobuild_tool', None)):
+                    tools_list.append(possible_tool_module)
 
-        group.add_option('-s', '--s3', action='store_true', default=False, dest='s3',
-            help='Indicates tarfile(s) belong on S3.  If unspecified, "S3ables.txt" (in configdir) will be used to determine which libraries are stored on S3.  Please verify clearance for public distribution prior to uploading any new libraries to S3.')
-        self.add_option('--configdir', type='string', default=os.getcwd(), dest='configdir',
-            help='Specify the config directory to use.  Defaults to current working directory.  If configdir specified, tarfiles will be assembled relative to root of tree containing configdir.')
-        self.add_option('--tarfiledir', type='string', default="", dest='tarfiledir',
-            help='Specify the directory in which to store new tarfiles.  Defaults to "tarfile_tmp".')
-        self.add_option('--dry-run', action='store_true', default=False, dest='dry_run',
-            help='Show what would be done, but don\'t actually do anything.')
-        self.add_option_group(group)
-        ##########
-        # END packaging options
-        ##########
-
-        self.add_option('--build-command', type='string', default='build.sh', dest='build_command',
-            help="command to execute for building a package (defaults to 'build.sh' or whatever's specified in autobuild.xml")
-
-def parse_args(args):
-    parser = OptionParser()
-    return parser.parse_args(args)
-
-def main(args):
-    parser = OptionParser()
-    options,extra_args = parser.parse_args(args)
-    if options.verbose:
-        print "options:'%r', args:%r" % (options.__dict__, args)
-
-    if not extra_args:
-        parser.print_usage()
-        print >>sys.stderr, "run '%s --help' for more details" % sys.argv[0]
-        return 1
-
-    if extra_args[0] == 'install':
-        import install
-        return install.main([a for a in args if a != 'install'])
-
-    if extra_args[0] == 'configure':
-        import configure
-        return configure.main(args[1:])
-
-    if extra_args[0] == 'package':
-        import package
-        options.make_tarfile = True
-        return package.main(options, extra_args[1:])
+    def try_to_import_tool(self, tool, tools_list):
+        autobuild_package_dir = os.path.dirname(__file__)
+        tool_module_name = 'autobuild_tool_' + tool
+        tool_file_name = tool_module_name + '.py'
+        full_tool_path = os.path.join(autobuild_package_dir, tool_file_name)
+        if os.path.exists(full_tool_path):
+            possible_tool_module = __import__(tool_module_name, globals(), locals(), []);
+            if(getattr(possible_tool_module, 'autobuild_tool', None)):
+                tools_list.append(possible_tool_module)
+                instance = self.register_tool(possible_tool_module)
+                return instance
+        return -1
 
 
-    if extra_args[0] == 'upload':
-        import package
-        options.upload = True
-        return package.main(options, extra_args[1:])
+    def main(self, args_in):
+    
+        self.tools_list = []
+        
+        self.parser.parent = self
+        self.parser.add_argument('--help',
+        help='Find all valid Autobuild Tools and show help', action=run_help,
+        nargs='?', default=argparse.SUPPRESS)
 
-    if extra_args[0] == 'build':
-        import build
-        return build.main(options, extra_args[1:])
+        argdefs = (
+            (('--dry-run',),
+             dict(help='Run tool in dry run mode if available', action='store_true')),
+##          (('--config-file',),
+##           dict(help="Specify configuration file",
+##                default=configfile.PACKAGES_CONFIG_FILE,
+##                dest="config_file")),
+##          (('--package-info',),
+##           dict(help='The file used to describe what should be installed.',
+##                default=configfile.PACKAGES_CONFIG_FILE,
+##                dest='install_filename')),
+            )
 
-    parser.print_usage()
-    print >>sys.stderr, "run '%s --help' for more details" % sys.argv[0]
-    return 1
+        for args, kwds in argdefs:
+            self.parser.add_argument(*args, **kwds)
+        
+        tool_to_run = -1;
+
+        for arg in args_in:
+            if arg[0] != '-':
+                tool_to_run = self.try_to_import_tool(arg, self.tools_list)
+                if tool_to_run != -1:
+                    # Define all the global arguments as also being legal
+                    # for the subcommand, e.g. support both
+                    # autobuild --dry-run upload args... and
+                    # autobuild upload --dry-run args...
+                    for args, kwds in argdefs:
+                        self.new_tool_subparser.add_argument(*args, **kwds)
+                break
+
+        args = self.parser.parse_args(args_in)
+ 
+        if tool_to_run != -1:
+            tool_to_run.run(args)
+
+        return 0
 
 if __name__ == "__main__":
-    sys.exit( main( sys.argv[1:] ) )
+    sys.exit( Autobuild().main( sys.argv[1:] ) )
+
+
 

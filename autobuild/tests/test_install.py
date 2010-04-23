@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 
 import unittest
-from autobuild import install
+from autobuild import autobuild_tool_install
 
 class TestOptions(unittest.TestCase):
     def setUp(self):
-        self.installer = install.Installer("autobuild.xml",
-                                           "autobuild-installed.xml",
-                                           False)
+        pass
 
     def test_0(self):
         pass
