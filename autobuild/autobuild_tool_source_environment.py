@@ -2,26 +2,29 @@
 
 import os
 import sys
+
 import common
+import autobuild_base
 
 # for the time being, we expect that we're checked out side-by-side with
 # parabuild buildscripts, so back up a level to find $helper.
+get_params = None
 helper = os.path.join(os.path.dirname(__file__),
                       os.pardir,
                       os.pardir,
                       'buildscripts/hg/bin')
-# Append helper to sys.path.
-_helper_idx = len(sys.path)
-sys.path.append(helper)
-assert sys.path[_helper_idx] == helper
+if os.path.exists(helper):
+    # Append helper to sys.path.
+    _helper_idx = len(sys.path)
+    sys.path.append(helper)
+    assert sys.path[_helper_idx] == helper
 
-get_params = None
-try:
-    import get_params
-    print >>sys.stderr, "found get_params: '%s'" % get_params.__file__
-except ImportError:
-    pass
-# *TODO - restor original sys.path value
+    try:
+        import get_params
+        print >>common.log(), "found get_params: '%s'" % get_params.__file__
+    except ImportError:
+        pass
+    # *TODO - restore original sys.path value
 
 environment_template = """
     export autobuild="%(AUTOBUILD_EXECUTABLE_PATH)s"
@@ -81,7 +84,60 @@ environment_template = """
     DISTCC_HOSTS="%(DISTCC_HOSTS)s"
 """
 
-import autobuild_base
+if common.get_current_platform() is "windows":
+    environment_template = "%s\n%s" % (environment_template,
+        """
+    USE_INCREDIBUILD=%(USE_INCREDIBUILD)s
+    function build_vcproj() {
+        local vcproj=$1
+        local config=$2
+
+        if ((%(USE_INCREDIBUILD)s)) ; then
+            BuildConsole "$vcproj" /CFG="$config"
+        else
+            devenv "$vcproj" /build "$config"
+        fi
+    }
+
+    function build_sln() {
+        local solution=$1
+        local config=$2
+        local proj=$3
+
+        if ((%(USE_INCREDIBUILD)s)) ; then
+            if [ -z "$proj" ] ; then
+                BuildConsole "$solution" /CFG="$config"
+            else
+                BuildConsole "$solution" /PRJ="$proj" /CFG="$config"
+            fi
+        else
+            if [ -z "$proj" ] ; then
+                devenv "$solution" /build "$config"
+            else
+                devenv "$solution" /build /project "$proj" /projectconfig "$config"
+            fi
+        fi
+    }
+""")
+
+def do_source_environment(args):
+    if common.get_current_platform() is "windows":
+        # reset stdout in binary mode so sh doesn't get confused by '\r'
+        import msvcrt
+        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+
+    sys.stdout.write(environment_template % {
+            'AUTOBUILD_EXECUTABLE_PATH':sys.argv[0],
+            'AUTOBUILD_VERSION_STRING':"0.0.1-mvp",
+            'AUTOBUILD_PLATFORM':common.get_current_platform(),
+            'MAKEFLAGS':"",
+            'DISTCC_HOSTS':"",
+            'USE_INCREDIBUILD':1,
+        })
+
+    if get_params:
+        # *TODO - run get_params.generate_bash_script()
+        pass
 
 class autobuild_tool(autobuild_base.autobuild_base):
     def get_details(self):
@@ -94,15 +150,5 @@ class autobuild_tool(autobuild_base.autobuild_base):
         parser.add_argument('-v', '--version', action='version', version='source_environment tool module 1.0')
 
     def run(self, args):
-        print environment_template % {
-                'AUTOBUILD_EXECUTABLE_PATH':sys.argv[0],
-                'AUTOBUILD_VERSION_STRING':"0.0.1-mvp",
-                'AUTOBUILD_PLATFORM':common.get_current_platform(),
-                'MAKEFLAGS':"",
-                'DISTCC_HOSTS':"",
-            }
-
-        if get_params:
-            # *TODO - run get_params.generate_bash_script()
-            pass
+        do_source_environment(args)
 
