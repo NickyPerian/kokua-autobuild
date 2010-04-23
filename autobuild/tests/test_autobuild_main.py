@@ -50,6 +50,7 @@ class TestOptions(unittest.TestCase):
         """test_empty_options: no options, should print usage and exit"""
         try:
             ret = self.autobuild_fixture.main([])
+            self.fail()
         except EarlyExitException:
             self.assertNotEquals(-1, captured_stdout.find('usage:'))
         pass
@@ -58,6 +59,7 @@ class TestOptions(unittest.TestCase):
         """test_typo_subtool: 'foobardribble' should print usage and exit"""
         try:
             ret = self.autobuild_fixture.main(['foobardribble'])
+            self.fail()
         except EarlyExitException:
             self.assertNotEquals(-1, captured_stdout.find('usage:'))
         pass
@@ -68,7 +70,7 @@ class TestOptions(unittest.TestCase):
             ret = self.autobuild_fixture.main(['-v'])
             self.fail()
         except EarlyExitException:
-            self.assertNotEquals(-1, captured_stdout.find('Autobuild'))
+            self.assertNotEquals(-1, captured_stdout.find('autobuild'))
         pass
 
     def test_tool_register(self):
