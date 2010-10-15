@@ -14,13 +14,9 @@ import common
 import copy
 import autobuild_base
 import configfile
-import logging
 from common import AutobuildError
 from autobuild_tool_configure import configure
 from autobuild_tool_configure import _configure_a_configuration
-
-
-logger = logging.getLogger('autobuild.build')
 
 
 # Add autobuild/bin to path.
@@ -59,6 +55,8 @@ class AutobuildTool(autobuild_base.AutobuildBase):
                        [-c CONFIGURATION] [--dry-run] -- [OPT [OPT ...]]"""
 
     def run(self, args):
+        if args.dry_run:
+            return
         config = configfile.ConfigurationDescription(args.config_file)
         current_directory = os.getcwd()
         build_directory = config.make_build_directory()
@@ -76,11 +74,10 @@ class AutobuildTool(autobuild_base.AutobuildBase):
             for build_configuration in build_configurations:
                 if configure_first:
                     result = _configure_a_configuration(config, build_configuration,
-                        args.build_extra_arguments, args.dry_run)
+                        args.build_extra_arguments)
                     if result != 0:
                         raise BuildError("configuring default configuration returned '%d'" % (result))                    
-                result = _build_a_configuration(config, build_configuration,
-                    args.build_extra_arguments, args.dry_run)
+                result = _build_a_configuration(config, build_configuration, args.build_extra_arguments)
                 if result != 0:
                     raise BuildError("building default configuration returned '%d'" % (result))
         finally:
@@ -103,7 +100,7 @@ def build(config, build_configuration_name, extra_arguments=[]):
     return _build_a_configuration(config, build_configuration, extra_arguments)
 
 
-def _build_a_configuration(config, build_configuration, extra_arguments, dry_run=False):
+def _build_a_configuration(config, build_configuration, extra_arguments):
     try:
         common_build_configuration = \
             config.get_build_configuration(build_configuration.name, 'common')
@@ -113,13 +110,8 @@ def _build_a_configuration(config, build_configuration, extra_arguments, dry_run
     if build_configuration.build is not None:
         build_executable = copy.copy(build_configuration.build)
         build_executable.parent = parent_build
-    elif parent_build is not none:
-        build_executable = parent_build
-    else:
-        logger.info('no build executable defined; doing nothing')
-        return 0
-    logger.info('executing build command %s', build_executable)
-    if not dry_run:
         return build_executable(extra_arguments)
+    elif parent_build is not none:
+        return parent_build(extra_arguments)
     else:
         return 0

@@ -5,7 +5,7 @@
 @date   2010-04-20
 @brief  Classes shared between package.py and upload.py
 
-$LicenseInfo:firstyear=2010&license=mit$
+$LicenseInfo:firstyear=2010&license=internal$
 Copyright (c) 2010, Linden Research, Inc.
 $/LicenseInfo$
 """

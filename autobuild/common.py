@@ -20,16 +20,11 @@ import os
 import sys
 import glob
 import itertools
-import logging
 import shutil
 import subprocess
 import tarfile
 import tempfile
 import urllib2
-
-
-logger = logging.getLogger('autobuild.common')
-
 
 class AutobuildError(RuntimeError):
     pass
@@ -47,6 +42,9 @@ PLATFORMS = [
              PLATFORM_LINUX,
              PLATFORM_SOLARIS,
             ]
+
+def log():
+    return sys.stderr
 
 def get_current_platform():
     """
@@ -84,7 +82,7 @@ def get_default_scp_command():
     """
     scp = find_executable(['pscp', 'scp'], ['.exe'])
     if not scp:
-        raise AutobuildError("cannot find an appropriate scp or pscp command")
+        raise AutobuildError("Cannot find an appropriate scp or pscp command.")
     return scp
 
 def get_default_install_cache_dir():
@@ -188,7 +186,7 @@ def compute_md5(path):
         from md5 import new as md5   # Python 2.5 and earlier
     stream = open(file, 'rb')
     try:
-        hasher = md5(stream.read())
+        hasher = md5(strem.read())
     except:
         raise AutobuildError('error computing hash')
     return hasher.hexdigest()
@@ -210,7 +208,7 @@ def download_package(package):
     # have we already downloaded this file to the cache?
     cachename = get_package_in_cache(package)
     if os.path.exists(cachename):
-        logger.info("package already in cache: %s" % cachename)
+        print "Package already in cache: %s" % cachename
         return True
 
     # Set up the 'scp' handler
@@ -220,12 +218,12 @@ def download_package(package):
     urllib2.install_opener(opener)
 
     # Attempt to download the remote file 
-    logger.info("downloading %s to %s" % (package, cachename))
+    print >>log(), "Downloading %s to %s" % (package, cachename)
     result = True
     try:
         file(cachename, 'wb').write(urllib2.urlopen(package).read())
     except Exception, e:
-        logger.exception("unable to download file: %s" % e)
+        print >>log(), "Unable to download file: %s" % e
         result = False
     
     # Clean up and return True if the download succeeded
@@ -242,11 +240,11 @@ def extract_package(package, install_dir):
     # Find the name of the package in the install cache
     cachename = get_package_in_cache(package)
     if not os.path.exists(cachename):
-        logger.error("cannot extract non-existing package: %s" % cachename)
+        print >>log(), "Cannot extract non-existing package: %s" % cachename
         return False
 
     # Attempt to extract the package from the install cache
-    logger.info("extracting %s to %s" % (cachename, install_dir))
+    print >>log(), "Extracting %s to %s" % (cachename, install_dir)
     tar = tarfile.open(cachename, 'r')
     try:
         # try to call extractall in python 2.5. Phoenix 2008-01-28
@@ -378,7 +376,7 @@ class __SCPOrHTTPHandler(urllib2.BaseHandler):
             url.insert(1, '/')
         url.insert(0, "http://")
         url = ''.join(url)
-        logger.info("using HTTP: " + url)
+        print "Using HTTP:",url
         return urllib2.urlopen(url)
 
     def do_scp(self, remote):
@@ -386,9 +384,10 @@ class __SCPOrHTTPHandler(urllib2.BaseHandler):
             self._dir = tempfile.mkdtemp()
         local = os.path.join(self._dir, remote.split('/')[-1])
         command = (self._scp, remote, local)
+        #print "forking:", ' '.join(command)
         rv = subprocess.call(command)
         if rv != 0:
-            raise AutobuildError("cannot fetch %s" % remote)
+            raise AutobuildError("Cannot fetch: %s" % remote)
         return file(local, 'rb')
 
     def cleanup(self):
@@ -516,7 +515,7 @@ class Bootstrap(object):
             elif self.deps[name].has_key('common'):
                 specs = self.deps[name]['common']
             else:
-                raise AutobuildError("no package defined for %s for %s" %
+                raise AutobuildError("No package defined for %s for %s" %
                                    (name, platform))
             
             # get the url and md5 for this package dependency
@@ -527,21 +526,21 @@ class Bootstrap(object):
 
             # download & extract the package, if not done already
             if not is_package_in_cache(url):
-                logger.info("installing package '%s'..." % name)
+                print >>log(), "Installing package '%s'..." % name
                 if download_package(url):
                     if not does_package_match_md5(url, md5sum):
-                        raise AutobuildError("md5 mismatch for %s" % url)
+                        raise AutobuildError("MD5 mismatch for: %s" % url)
                     else:
                         extract_package(url, install_dir)
                 else:
-                    raise AutobuildError("could not download %s" % url)
+                    raise AutobuildError("Could not download: %s" % url)
 
             # check for package downloaded but install dir nuked
             full_pathcheck = os.path.join(install_dir, *pathcheck.split('/'))
             if not os.path.exists(full_pathcheck):
                 extract_package(url, install_dir)
                 if not os.path.exists(full_pathcheck):
-                    raise AutobuildError("invalid 'pathcheck' setting for '%s'" % name)
+                    raise AutobuildError("Invalid 'pathcheck' setting for '%s'" % name)
 
 #
 # call the bootstrap code whenever this module is imported
