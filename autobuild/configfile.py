@@ -38,7 +38,6 @@ class ConfigurationDescription(common.Serialized):
     Attributes:
         package_description
         installables
-        platform_configurations
     """
     
     path = None
@@ -48,7 +47,6 @@ class ConfigurationDescription(common.Serialized):
         self.type = AUTOBUILD_CONFIG_TYPE
         self.installables = {}
         self.package_description = None
-        self.platform_configurations = {}
         self.__load(path)
  
     def absolute_path(self, path):
@@ -66,6 +64,17 @@ class ConfigurationDescription(common.Serialized):
         Returns all build configurations for the platform.
         """
         return self.get_platform(platform_name).configurations.values()
+    
+    def get_really_all_build_configurations(self):
+        """
+        Returns all build configurations for all platforms.
+        """
+        # REVIEW: this returns a constructed object, for display purposes. 
+        # However, it does not reflect the true datastructure. An issue?
+        platform_dict = {}
+        for platform_name in self.get_all_platforms():
+            platform_dict[platform_name] =(self.get_platform(platform_name).configurations.values())
+        return platform_dict
     
     def get_build_configuration(self, build_configuration_name, platform_name=get_current_platform()):
         """
@@ -119,6 +128,13 @@ class ConfigurationDescription(common.Serialized):
         else:
             return platform_description
     
+    def get_all_platforms(self):
+        try:
+            return self.package_description.platforms
+        except AttributeError:
+            self.package_description = PackageDescription({})
+        return self.package_description.platforms
+
     def get_working_platform(self):
         """
         Returns the working platform description.
@@ -219,7 +235,7 @@ class PackageDescription(common.Serialized):
 
     def __init_from_dict(self, dictionary):
         platforms = dictionary.pop('platforms',{})
-        for (key, value) in platforms.iteritems():
+        for (key, value) in platforms.items():
             self.platforms[key] = PlatformDescription(value)
         self.update(dictionary)
 
