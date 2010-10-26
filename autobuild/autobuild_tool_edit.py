@@ -69,6 +69,7 @@ class AutobuildTool(AutobuildBase):
                                 'build':        Build,
                                 'package':      Package,
                                 'platform':     Platform,
+                                'source-info':  SourceInfo,
                             }
         return self.arguments
 
@@ -98,8 +99,7 @@ class _config(InteractiveCommand):
         self.description = stream.getvalue()
         stream.close()
         stream = StringIO()
-        stream.write("Enter name of existing configuration to modify, or new name to create a new configuration.")
-        stream.write("\nUse commas to speparate independent options and arguments.")
+        stream.write("Use commas to separate items in options and arguments fields")
         self.help = stream.getvalue()
         self.config = config
 
@@ -234,23 +234,7 @@ class Platform(InteractiveCommand):
         self.config.package_description.platforms.pop(name)
 
 
-class Package(InteractiveCommand):
-
-    ARGUMENTS = ['name', 'description', 'copyright', 'license', 'license_file', 
-                 'source', 'source_type', 'source_directory', 'version',]
-
-    ARG_DICT = {    'name':             {'help':'Name of package'}, 
-                    'description':      {'help':'Package description'},
-                    'copyright':        {'help':'Copyright string'}, 
-                    'license':          {'help':'Type of license'},
-                    'license_file':     {'help':'Full path to license file'},
-                    'source':           {'help':'Source'},
-                    'source_type':      {'help':'Source type'},
-                    'source_directory': {'help':'Location of source directory'},
-                    'version':          {'help':'Version'},
-                }
-
-    HELP = "Information about the package"
+class _package(InteractiveCommand):
 
     def __init__(self, config):
         stream = StringIO()
@@ -280,19 +264,48 @@ class Package(InteractiveCommand):
         self.config.package_description = pkg
 
     def non_interactive_delete(self, **kwargs):
-        if self._confirm_delete():
-            self.delete(**kwargs)
+        self.delete(**kwargs)
+
+
+class Package(_package):
+
+    ARGUMENTS = ['name', 'description', 'copyright', 'license', 'license_file',
+                 'version',]
+
+    ARG_DICT = {    'name':             {'help':'Name of package'},
+                    'description':      {'help':'Package description'},
+                    'copyright':        {'help':'Copyright string (as appropriate for your package)'},
+                    'license':          {'help':'Type of license (as appropriate for your package)'},
+                    'license_file':     {'help':'Path to license file relative to package root, if known'},
+                    'version':          {'help':'Version'},
+                }
+
+    HELP = "Information about the package"
 
     def delete(self, name='', platform='', **kwargs):
         """
         Delete the named config value.
         """
-        really_really_delete = raw_input("Do you really really want to delete this entry?\nThis will delete everything in the config file except the installables. (y/[n])> ")
-        if really_really_delete in ['y', 'Y', 'yes', 'Yes', 'YES']:
-            print "Deleting entry."
-            self.config.package_description = None
-            return
+        if self._confirm_delete():
+            really_really_delete = raw_input("Do you really really want to delete this entry?\nThis will delete everything in the config file except the installables. (y/[n])> ")
+            if really_really_delete in ['y', 'Y', 'yes', 'Yes', 'YES']:
+                print "Deleting entry."
+                self.config.package_description = None
+                return
         print "Cancelling delete."
+
+
+class SourceInfo(_package):
+
+    ARGUMENTS = ['source', 'source_type', 'source_directory',]
+
+    ARG_DICT = {    
+                    'source':           {'help':'Source URL for code repository'},
+                    'source_type':      {'help':'Repository type (hg, svn, etc.)'},
+                    'source_directory': {'help':'Location to which source should be installed, relative to autobuild.xml'},
+                }
+
+    HELP = "Information about the package source, for installation as source by other packages."
 
 
 def _process_key_value_arguments(arguments):
