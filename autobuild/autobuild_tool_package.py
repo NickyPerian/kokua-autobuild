@@ -104,6 +104,11 @@ def package(config, platform_name, archive_filename=None, check_license=True, dr
     if not config.package_description:
         raise PackageError("no package description")
     package_description = config.package_description
+    if not package_description.name:
+        raise PackageError("no package name specified")
+    # Not using logging, since this output should be produced unconditionally on stdout
+    # Downstream build tools utilize this output
+    print "packing %s" % package_description.name
     if not package_description.version:
         raise PackageError("no version number specified")
     build_directory = config.get_build_directory(platform_name)
@@ -195,6 +200,8 @@ def _create_tarfile(tarfilename, build_directory, filelist):
         tfile.close()
     finally:
         os.chdir(current_directory)
+    # Not using logging, since this output should be produced unconditionally on stdout
+    # Downstream build tools utilize this output
     print "wrote  %s" % tarfilename
     import hashlib
     fp = open(tarfilename, 'rb')
@@ -203,4 +210,6 @@ def _create_tarfile(tarfilename, build_directory, filelist):
         d = fp.read(65536)
         if not d: break
         m.update(d)
+    # Not using logging, since this output should be produced unconditionally on stdout
+    # Downstream build tools utilize this output
     print "md5    %s" % m.hexdigest()
