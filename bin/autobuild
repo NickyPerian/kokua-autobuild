@@ -27,7 +27,6 @@ Command to manage the creation and installation of package archives.
 """
 
 import sys
-import logging
 import os
 
 script_path = os.path.dirname(os.path.realpath(os.path.abspath(__file__)))
@@ -35,18 +34,8 @@ lib_path = os.path.dirname(script_path)
 if os.path.exists(os.path.join(lib_path, 'autobuild', '__init__.py')):
     if not lib_path in sys.path:
         sys.path.insert(0, lib_path)
-from autobuild.autobuild_main import Autobuild
-from autobuild.common import AutobuildError
+
+from autobuild import autobuild_main
 
 if __name__ == "__main__":
-    logger = logging.getLogger('autobuild')
-    try:
-        os.environ['PATH'] = os.environ.get('PATH') + os.pathsep + script_path
-        sys.exit( Autobuild().main(sys.argv[1:]) )
-    except KeyboardInterrupt, e:
-        sys.exit("Aborted...")
-    except AutobuildError, e:
-        if logger.getEffectiveLevel() <= logging.DEBUG:
-            logger.exception(str(e))
-        sys.exit("ERROR: %s\nFor more information: try re-running your command with --verbose or --debug" % e)
-
+    autobuild_main.main()

@@ -22,7 +22,9 @@
 # THE SOFTWARE.
 # $/LicenseInfo$
 
-from distutils.core import setup
+from distribute_setup import use_setuptools
+use_setuptools()
+from setuptools import setup
 
 # most of this is shamelessly cloned from llbase's setup.py
 
@@ -66,7 +68,8 @@ setup(
     platforms=["any"],
     package_dir={PACKAGE_NAME:LLAUTOBUILD_SOURCE},
     packages=[PACKAGE_NAME],
-    scripts=['bin/autobuild', 'bin/autobuild.cmd'],
+    entry_points=dict(console_scripts=['autobuild=autobuild.autobuild_main:main']),
+    scripts=['bin/autobuild.cmd'],
     license='MIT',
     classifiers=filter(None, CLASSIFIERS.split("\n")),
     #requires=['eventlet', 'elementtree'],
