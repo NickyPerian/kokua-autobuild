@@ -588,6 +588,10 @@ class Bootstrap(object):
                 'filename' : "llbase-0.2.0-linux-20100225.tar.bz2",
                 'md5sum'   : "a5d3edb6b43c46e9392c1c96e51cc3e7",
                 },
+            'linux64' : {
+                'filename' : "llbase-0.2.0-linux-20100225.tar.bz2",
+                'md5sum'   : "a5d3edb6b43c46e9392c1c96e51cc3e7",
+                },
             'pathcheck' : "lib/python2.5/llbase"
             },
         'boto': {
