@@ -320,10 +320,10 @@ def extract_and_convert_package(package, install_dir, structure):
            if os.path.lexists(src_full_path):
               if os.path.isdir(src_full_path):
                  if not os.path.lexists(dst_inst_dir):
-                    os.mkdir(dst_inst_dir, 0755)
+                    os.makedirs(dst_inst_dir, 0755)
               elif  src_full_path != dst_full_path:
                     if not os.path.lexists(dst_inst_dir):
-                       os.mkdir(dst_inst_dir, 0755)
+                       os.makedirs(dst_inst_dir, 0755)
                     shutil.move(src_full_path, dst_full_path)
                     print "Moving: {0}\n     -> {1}".format(src_full_path, dst_full_path)
 	   elif not os.path.lexists(dst_full_path):
@@ -337,8 +337,11 @@ def extract_and_convert_package(package, install_dir, structure):
     # remove empty directories - this needs more work
     for f in files:
         check_dir = os.path.join(install_dir,os.path.dirname(f))
-        if os.path.lexists(check_dir) and os.path.isdir(check_dir) and not os.listdir(check_dir):
-           os.rmdir(check_dir)
+        #check_file = os.path.join(install_dir,f)
+        if os.path.exists(check_dir) and os.path.isdir(check_dir) and not os.listdir(check_dir):
+           os.removedirs(check_dir)
+        #elif os.path.exists(check_file) and not os.path.isdir(check_file):
+           #os.remove(check_file)
 
     return moved_files
 
