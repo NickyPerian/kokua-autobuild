@@ -1,0 +1,10 @@
+*~
+build/
+dist/
+*.pyc
+virtualenv/
+
+*.diff
+*.patch
+*.orig
+*.rej
