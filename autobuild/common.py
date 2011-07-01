@@ -35,6 +35,7 @@ Author : Martin Reddy
 Date   : 2010-04-13
 """
 
+import re
 import os
 import sys
 import glob
@@ -259,6 +260,40 @@ def download_package(package):
     scp_or_http.cleanup()
     return result
 
+def sanitize_symlinks(files, install_dir, package):
+
+    # fixme: no dry_run 
+    dry_run = False
+
+    symlinks = []
+
+    first = 1
+    for tfile in files:
+        if tfile.find('.so.') > 0:
+            LINK = re.sub(r'\.so\.[0-9.]*$', '.so', tfile)
+            link_name = install_dir + "/" + LINK
+            if not os.path.exists(link_name):
+                if first == 1:
+                    first = 0
+                    print "Adding missing symlink(s) for package %s:" % package
+                target = os.path.basename(tfile)
+                soname = os.popen("readelf -d \"%(install_dir)s/%(tfile)s\" %(stderr_redirect)s"
+                    " | grep SONAME | sed -e 's/.*\[//;s/\].*//'" %
+                                                    {"install_dir": install_dir, "tfile": tfile, "stderr_redirect": ("2>/dev/null" if dry_run else "")}).read()
+                soname = soname.strip()
+                if soname:  # not empty
+                    tmpfname = os.path.dirname(LINK) + "/" + soname
+                    if os.path.exists(install_dir + "/" + tmpfname):
+                        target = soname
+                    else:
+                        print "WARNING: SONAME %s doesn't exist!" % tmpfname
+                if not dry_run:
+                    os.symlink(target, link_name)
+                symlinks += [LINK]
+                print "    %s --> %s" % (LINK, target)
+                files += symlinks
+    return files
+
 def extract_and_convert_package(package, install_dir, structure):
     """
     Extract the contents of a downloaded package to the specified
@@ -293,8 +328,10 @@ def extract_and_convert_package(package, install_dir, structure):
 
     # nothing to convert, just return files
     if (structure == 'None') or not structure :
-       return files
-
+       if get_current_platform() == 'linux' or get_current_platform() == 'linux64':
+         return sanitize_symlinks(files, install_dir, package)
+       else:
+         return files
     # convert directory structure
 
     moved_files = []
@@ -343,7 +380,10 @@ def extract_and_convert_package(package, install_dir, structure):
         #elif os.path.exists(check_file) and not os.path.isdir(check_file):
            #os.remove(check_file)
 
-    return moved_files
+    if get_current_platform() == 'linux' or get_current_platform() == 'linux64':
+      return sanitize_symlinks(moved_files, install_dir, package)
+    else:
+      return moved_files
 
 def extract_package(package, install_dir):
     """
