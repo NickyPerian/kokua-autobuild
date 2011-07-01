@@ -8,3 +8,6 @@ virtualenv/
 *.patch
 *.orig
 *.rej
+
+*.egg
+*.tar.gz
