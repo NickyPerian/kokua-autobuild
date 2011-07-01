@@ -61,6 +61,7 @@ class _Update_1_1(object):
     archive_properties = {
         'md5sum':'hash', \
         'url':'url', \
+        'dir_structure':'dir_structure', \
     }
     
     def __call__(self, old_config, config):

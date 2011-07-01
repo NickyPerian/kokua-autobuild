@@ -103,7 +103,7 @@ class AutobuildTool(autobuild_base.AutobuildBase):
 
 _PACKAGE_ATTRIBUTES =  ['descripition', 'copyright', 'license', 'license_file', 'source', \
             'source_type', 'source_directory', 'version']
-_ARCHIVE_ATTRIBUTES = ['hash', 'hash_algorithm', 'url']
+_ARCHIVE_ATTRIBUTES = ['hash', 'hash_algorithm', 'url', 'dir_structure']
 
 
 def add(config, installable_name, installable_data):

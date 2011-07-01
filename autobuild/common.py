@@ -259,6 +259,89 @@ def download_package(package):
     scp_or_http.cleanup()
     return result
 
+def extract_and_convert_package(package, install_dir, structure):
+    """
+    Extract the contents of a downloaded package to the specified
+    directory.  Returns the list of files that were successfully
+    extracted.
+    If dir_structure is given, files will be moved according to the rules
+    defined in dir_structure, and the list of moved files is returned.
+    Example archive map that moves files from a legacy viewer package to the new locations:
+                <key>archive</key>
+                <map>
+                <key>dir_structure</key>
+                        <map>
+                        <key>libraries/include</key><!-- source -->
+                                <string>include</string><!-- destination -->
+                        <key>libraries/i686-linux/include</key>
+                                <string>include</string>
+                        <key>libraries/i686-linux/lib_release_client</key>
+                                <string>lib/release</string>
+                        <key>LICENSES</key>
+                                <string>LICENSES</string>
+                        </map>
+                <key>hash</key>
+                        <string>12345678909876543212345678909876</string>
+                <key>url</key>
+                        <string>http://localhost/mypackage-linux32-20010815.tar.bz2</string>
+                </map>
+     Note that also directories that are not actually moved need to be included, that uninstall
+     can remove them properly (e.g LICENSES).
+    """
+
+    files = extract_package(package, install_dir)
+
+    # nothing to convert, just return files
+    if (structure == 'None') or not structure :
+       return files
+
+    # convert directory structure
+
+    moved_files = []
+
+    for f in files:
+        file_name =  os.path.basename(f)
+
+        src_dir = os.path.dirname(f)
+        src_full_path = os.path.join(install_dir,src_dir,file_name)
+
+        dst_dir = 'None'
+        for k in structure.keys():
+            if src_dir.startswith(k):
+               new_value = structure.get(k)
+               dst_dir = src_dir.replace(k, new_value, 1)
+               break
+
+        dst_full_path = 'skipped'
+        if dst_dir != "None":
+           dst_full_path = os.path.join(install_dir,dst_dir,file_name)
+           dst_rel_path = os.path.join(dst_dir,file_name)
+           dst_inst_dir = os.path.join(install_dir,dst_dir)
+           if os.path.lexists(src_full_path):
+              if os.path.isdir(src_full_path):
+                 if not os.path.lexists(dst_inst_dir):
+                    os.mkdir(dst_inst_dir, 0755)
+              elif  src_full_path != dst_full_path:
+                    if not os.path.lexists(dst_inst_dir):
+                       os.mkdir(dst_inst_dir, 0755)
+                    shutil.move(src_full_path, dst_full_path)
+                    print "Moving: {0}\n     -> {1}".format(src_full_path, dst_full_path)
+	   elif not os.path.lexists(dst_full_path):
+              print "oh noes, not moved - source doesn't exist: ", src_full_path
+           if os.path.lexists(dst_full_path):
+              if not os.path.isdir(src_full_path):
+                 moved_files.append(dst_rel_path)
+           elif not os.path.isdir(src_full_path):
+                print "oh noes, not moved: ", src_full_path
+
+    # remove empty directories - this needs more work
+    for f in files:
+        check_dir = os.path.join(install_dir,os.path.dirname(f))
+        if os.path.lexists(check_dir) and os.path.isdir(check_dir) and not os.listdir(check_dir):
+           os.rmdir(check_dir)
+
+    return moved_files
+
 def extract_package(package, install_dir):
     """
     Extract the contents of a downloaded package to the specified

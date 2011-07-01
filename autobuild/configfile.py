@@ -362,6 +362,7 @@ class ArchiveDescription(common.Serialized):
         self.hash = None
         self.hash_algorithm = None
         self.url = None
+	self.dir_structure = None
         if dictionary is not None:
             self.update(dictionary)
 

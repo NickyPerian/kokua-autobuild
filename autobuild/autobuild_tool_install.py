@@ -395,9 +395,9 @@ def _install_binary(package, platform, config_file, install_dir, installed_file,
         logger.debug("creating " + install_dir)
         os.makedirs(install_dir)
 
-    # extract the files from the package
+    # extract the files from the package, convert dir structure if necessary
     logger.warn("extracting %s" % (package.name))
-    files = common.extract_package(archive.url, install_dir)
+    files = common.extract_and_convert_package(archive.url, install_dir, archive.dir_structure)
     for f in files:
         logger.debug("extracted: " + f)
 
